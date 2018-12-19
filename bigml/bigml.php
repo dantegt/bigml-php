@@ -191,6 +191,10 @@ class BigML {
                     E_USER_NOTICE);
    }
 
+   public function setProject($project) {
+      $this->project = $project;
+   }
+
    /**
     * Check if BigML keys have been set
     *
@@ -379,7 +383,7 @@ class BigML {
          $resource = $r->resource;
       }
 
-      if (preg_match('/(source|dataset|model|evaluation|ensemble|batchprediction|batchcentroid|prediction|cluster|centroid|anomaly|anomalyscore|sample|project|correlation|statisticaltest|association|logisticregression|library|execution|script|topicmodel|deepnet)(\/)([a-z,0-9]{24}|[a-z,0-9]{27})$/i', $resource, $result)) {
+      if (preg_match('/(source|dataset|model|evaluation|ensemble|optiml|batchprediction|batchcentroid|prediction|cluster|centroid|anomaly|anomalyscore|sample|project|correlation|statisticaltest|association|logisticregression|library|execution|script|topicmodel|deepnet)(\/)([a-z,0-9]{24}|[a-z,0-9]{27})$/i', $resource, $result)) {
          $count = 0;
          $status = $this->_check_resource_status($resource, $queryString); 
          while ($count<$retries && !$status["ready"]) {
@@ -889,6 +893,105 @@ class BigML {
         Deletes a ensemble 
       */
       $rest = $this->get_resource_request($ensembleId, "ensemble", "DELETE", null);
+      if ($rest == null) return null;
+      return $rest->getResponse();
+   }
+
+   ##########################################################################
+   #
+   # OptiML
+   # https://bigml.com/developers/optiml
+   #
+   ##########################################################################
+
+   public function create_optiml($datasetIds, $data=array(), $waitTime=3000, $retries=10) {
+
+      /*
+        Creates a optiml from a `dataset` or a list o `datasets`.
+      */
+
+      $datasets= array();
+
+      if (!is_array($datasetIds)) {
+         $datasetIds=array($datasetIds);
+      }
+
+      foreach ($datasetIds as $var => $datasetId) {
+         $resource = $this->_check_resource($datasetId, null, $waitTime, $retries);
+         if ($resource == null || $resource['type'] != "dataset") {
+            error_log("Wrong dataset id");
+            return null;
+         } elseif ($resource["status"] != BigMLRequest::FINISHED) {
+            error_log($resource['message']);
+            return null;
+         }
+         array_push($datasets, $resource["id"]);
+      }
+
+      $rest = new BigMLRequest('CREATE', 'optiml', $this);
+
+      if (sizeof($datasets) > 1) {
+         $data["datasets"] = $datasets;
+      } else {
+         $data["dataset"] = $datasets[0];
+      }
+
+      $rest->setData($data);
+      $rest->setHeader('Content-Type', 'application/json');
+      $rest->setHeader('Content-Length', strlen(json_encode($data)));
+      return $rest->getResponse();
+   }
+
+   public function get_optiml($optimlId, $queryString=null)
+   {
+      /*
+        Retrieves an optiml.
+
+        The optiml parameter should be a string containing the
+        optiml id or the dict returned by create_optiml.
+        As an optiml is an evolving object that is processed
+        until it reaches the FINISHED or FAULTY state, the function will
+        return a dict that encloses the optiml values and state info
+        available at the time it is called. 
+      */
+      $rest = $this->get_resource_request($optimlId, "optiml", "GET", $queryString);
+      if ($rest == null) return null;
+      return $rest->getResponse();
+
+   }
+   
+   public function list_optimls($queryString=null)
+   {
+      /*
+        Lists all your optimls 
+      */
+      $rest = new BigMLRequest('LIST', 'optiml', $this);
+
+      if ($queryString!=null) {
+         $rest->setQueryString($queryString);
+      }
+
+      return $rest->getResponse();
+   }
+
+   public function update_optiml($optimlId, $data, $waitTime=3000, $retries=10) {
+      /*
+        Updates a optiml 
+      */
+      $rest = $this->get_resource_request($optimlId, "optiml", "UPDATE", null, true, 3000, 10);
+      if ($rest == null) return null;
+
+      $rest->setData($data);
+      $rest->setHeader('Content-Type', 'application/json');
+      $rest->setHeader('Content-Length', strlen(json_encode($data)));
+      return $rest->getResponse();
+   }
+
+   public function delete_optiml($optimlId) {
+      /*
+        Deletes a optiml 
+      */
+      $rest = $this->get_resource_request($optimlId, "optiml", "DELETE", null);
       if ($rest == null) return null;
       return $rest->getResponse();
    }
